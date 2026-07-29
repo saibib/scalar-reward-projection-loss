@@ -1,0 +1,7 @@
+aspect_a,aspect_b,n_comparable,n_disagree,disagreement_rate
+overall,helpful,29644,1116,0.03764674133045473
+overall,truthful,7326,274,0.0374010374010374
+overall,harmless,2125,215,0.1011764705882353
+helpful,truthful,7025,605,0.08612099644128114
+helpful,harmless,1924,964,0.501039501039501
+truthful,harmless,772,155,0.20077720207253885

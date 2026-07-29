@@ -1,0 +1,53 @@
+{
+  "mode": "run",
+  "flat": "src/results/multipref_v4/multipref_flat_annotations.csv",
+  "n_flat_rows": 31934,
+  "n_prompt_ids": 5307,
+  "n_region_rows": 4800,
+  "n_splits_requested": 20,
+  "split_indices_run": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19
+  ],
+  "groups": [
+    "all",
+    "normal",
+    "expert"
+  ],
+  "aspects": [
+    "overall",
+    "helpful",
+    "truthful",
+    "harmless"
+  ],
+  "test_frac": 0.25,
+  "min_train_edge_weight": 5.0,
+  "min_test_weight": 5.0,
+  "min_test_edges": 2,
+  "tau": 0.0,
+  "bt_l2": 0.01,
+  "skipped": {
+    "no_observations": 0,
+    "ineligible_region": 0
+  },
+  "result_path": "src/results/multipref_downstream_local20/multipref_downstream_region_results.csv",
+  "summary_path": "src/results/multipref_downstream_local20/multipref_downstream_summary.csv"
+}

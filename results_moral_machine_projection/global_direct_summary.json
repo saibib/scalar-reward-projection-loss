@@ -1,0 +1,57 @@
+{
+  "global_direct": [
+    {
+      "scope": "global_direct_all_retained",
+      "n_users": 1851181,
+      "n_countries": 229,
+      "n": 20,
+      "condorcet_3cycles": 0,
+      "condorcet_3cycle_fraction": 0.0,
+      "num_4subsets": 4845,
+      "odd_parity_4subsets": 0,
+      "odd_parity_fraction": 0.0,
+      "cohomology_class_nonzero": false,
+      "beta_1_acyclic_complex": 0,
+      "num_acyclic_triples": 1140,
+      "hodge_n_edges": 190,
+      "hodge_gradient_energy": 58504518.600294,
+      "hodge_cyclic_residual_energy": 1054474.935480483,
+      "hodge_total_energy": 59558993.5357745,
+      "hodge_rho_cyc": 0.017704713811980483,
+      "strict_condorcet_3cycles": 0,
+      "majority_tie_edges": 0,
+      "min_abs_edge_margin": 0.0010597004184000967
+    },
+    {
+      "scope": "global_direct_eligible_countries",
+      "n_users": 1845947,
+      "n_countries": 105,
+      "n": 20,
+      "condorcet_3cycles": 0,
+      "condorcet_3cycle_fraction": 0.0,
+      "num_4subsets": 4845,
+      "odd_parity_4subsets": 0,
+      "odd_parity_fraction": 0.0,
+      "cohomology_class_nonzero": false,
+      "beta_1_acyclic_complex": 0,
+      "num_acyclic_triples": 1140,
+      "hodge_n_edges": 190,
+      "hodge_gradient_energy": 58339412.59516691,
+      "hodge_cyclic_residual_energy": 1051462.3551938143,
+      "hodge_total_energy": 59390874.95036057,
+      "hodge_rho_cyc": 0.017704106162312577,
+      "strict_condorcet_3cycles": 0,
+      "majority_tie_edges": 0,
+      "min_abs_edge_margin": 0.0010507616532248187
+    }
+  ],
+  "country_observed_means": {
+    "country_mean_condorcet_3cycles": 0.21904761904761905,
+    "country_mean_condorcet_3cycle_fraction": 0.00019214703425228855,
+    "country_mean_odd_parity_4subsets": 3.6476190476190475,
+    "country_mean_odd_parity_fraction": 0.0007528625485281742,
+    "country_mean_cohomology_class_nonzero": 0.18095238095238095,
+    "country_mean_hodge_rho_cyc": 0.018723572454721348
+  },
+  "interpretation": "The global direct tournament is reported both for all retained respondents and for respondents in countries eligible for the country-level analysis. Country means keep the cultural grouping used in the main Moral Machine analysis."
+}

@@ -1,0 +1,8 @@
+{
+  "mode": "combine",
+  "combine_glob": "src/results/multipref_downstream/*_split_*_region_results.csv",
+  "n_input_files": 1,
+  "n_region_rows": 240,
+  "result_path": "src/results/multipref_downstream/multipref_downstream_region_results.csv",
+  "summary_path": "src/results/multipref_downstream/multipref_downstream_summary.csv"
+}

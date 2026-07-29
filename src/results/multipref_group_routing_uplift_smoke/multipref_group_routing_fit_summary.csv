@@ -1,0 +1,13 @@
+split_index,group,aspect,model,fit_ok,n_train_obs,train_weight,n_features,n_iter
+0,all,overall,pooled,True,17966,13165.0,10000,10
+0,normal,overall,group_head,True,9035,6747.5,10000,10
+0,expert,overall,group_head,True,8931,6417.5,10000,10
+0,all,helpful,pooled,True,18008,13165.5,10000,10
+0,normal,helpful,group_head,True,9014,6691.0,10000,10
+0,expert,helpful,group_head,True,8994,6474.5,10000,10
+0,all,truthful,pooled,True,4436,3262.0,10000,10
+0,normal,truthful,group_head,True,1990,1477.5,10000,10
+0,expert,truthful,group_head,True,2446,1784.5,10000,10
+0,all,harmless,pooled,True,1368,1050.0,10000,10
+0,normal,harmless,group_head,True,602,467.0,10000,10
+0,expert,harmless,group_head,True,766,583.0,10000,10

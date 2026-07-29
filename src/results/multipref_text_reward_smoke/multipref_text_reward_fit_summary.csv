@@ -1,0 +1,13 @@
+split_index,group,aspect,fit_ok,n_train_obs,train_weight,n_features,n_iter
+0,all,overall,True,17966,13165.0,10000,10
+0,all,helpful,True,18008,13165.5,10000,10
+0,all,truthful,True,4436,3262.0,10000,10
+0,all,harmless,True,1368,1050.0,10000,10
+0,normal,overall,True,9035,6747.5,10000,10
+0,normal,helpful,True,9014,6691.0,10000,10
+0,normal,truthful,True,1990,1477.5,10000,10
+0,normal,harmless,True,602,467.0,10000,10
+0,expert,overall,True,8931,6417.5,10000,10
+0,expert,helpful,True,8994,6474.5,10000,10
+0,expert,truthful,True,2446,1784.5,10000,10
+0,expert,harmless,True,766,583.0,10000,10

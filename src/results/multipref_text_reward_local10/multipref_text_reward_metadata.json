@@ -1,0 +1,37 @@
+{
+  "arrow": "/Users/saimun/.cache/huggingface/datasets/allenai___multipref/default/0.0.0/12910233a0238a997ebe425656e9dfed7b0ff031/multipref-train.arrow",
+  "n_raw_rows": 10461,
+  "n_annotation_rows": 31934,
+  "n_prompt_ids": 5307,
+  "n_region_rows": 2400,
+  "n_splits": 10,
+  "groups": [
+    "all",
+    "normal",
+    "expert"
+  ],
+  "aspects": [
+    "overall",
+    "helpful",
+    "truthful",
+    "harmless"
+  ],
+  "test_frac": 0.25,
+  "max_features": 30000,
+  "actual_features": 30000,
+  "ngram_max": 2,
+  "min_df": 2,
+  "sgd_alpha": 1e-05,
+  "sgd_max_iter": 20,
+  "min_train_edge_weight": 5.0,
+  "min_test_weight": 5.0,
+  "min_test_edges": 2,
+  "tau": 0.0,
+  "skipped": {
+    "empty_obs": 0,
+    "fit_failed": 0
+  },
+  "result_path": "src/results/multipref_text_reward_local10/multipref_text_reward_region_results.csv",
+  "fit_path": "src/results/multipref_text_reward_local10/multipref_text_reward_fit_summary.csv",
+  "summary_path": "src/results/multipref_text_reward_local10/multipref_text_reward_summary.csv"
+}

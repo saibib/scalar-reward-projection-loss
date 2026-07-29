@@ -1,0 +1,21 @@
+{
+  "flat": "src/results/multipref_v4/multipref_flat_annotations.csv",
+  "observed_summary": "src/results/multipref_v4/multipref_cycle_projection_summary.csv",
+  "groups": [
+    "all",
+    "normal",
+    "expert"
+  ],
+  "aspects": [
+    "overall",
+    "helpful",
+    "truthful",
+    "harmless"
+  ],
+  "n_null": 5000,
+  "seed": 20260615,
+  "min_support": 1.0,
+  "tau": 0.0,
+  "margin_bound": 0.999,
+  "null_description": "Support-preserving bounded additive-margin null. For each group/aspect, fit m_ij=r_i-r_j by weighted least squares with |m_ij| bounded, then resample non-tie signs on the observed pair support while preserving per-edge annotation weights."
+}

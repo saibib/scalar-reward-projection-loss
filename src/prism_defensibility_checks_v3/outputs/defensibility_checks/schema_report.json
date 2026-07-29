@@ -1,0 +1,61 @@
+{
+  "dataset_name": "HannahRoseKirk/prism-alignment",
+  "subset": "conversations",
+  "split": "train",
+  "history_col": "conversation_history",
+  "choice_attr_col": "choice_attributes",
+  "performance_attr_col": "performance_attributes",
+  "columns": [
+    "conversation_id",
+    "user_id",
+    "conversation_type",
+    "opening_prompt",
+    "conversation_turns",
+    "conversation_history",
+    "performance_attributes",
+    "choice_attributes",
+    "open_feedback",
+    "generated_datetime",
+    "timing_duration_s",
+    "timing_duration_mins",
+    "included_in_balanced_subset"
+  ],
+  "n_raw_rows": 8011,
+  "n_pairwise_rows": 169224,
+  "load_attempts": [
+    {
+      "strategy": "load_dataset(name, subset, split)",
+      "status": "ok",
+      "rows": 8011,
+      "columns": [
+        "conversation_id",
+        "user_id",
+        "conversation_type",
+        "opening_prompt",
+        "conversation_turns",
+        "conversation_history",
+        "performance_attributes",
+        "choice_attributes",
+        "open_feedback",
+        "generated_datetime",
+        "timing_duration_s",
+        "timing_duration_mins",
+        "included_in_balanced_subset"
+      ]
+    }
+  ],
+  "parse_status_counts": {
+    "ok": 7990,
+    "too_few_models": 21
+  },
+  "opening_model_count_summary": {
+    "count": 8011.0,
+    "mean": 3.750967419797778,
+    "std": 0.4931718536327387,
+    "min": 1.0,
+    "25%": 4.0,
+    "50%": 4.0,
+    "75%": 4.0,
+    "max": 4.0
+  }
+}

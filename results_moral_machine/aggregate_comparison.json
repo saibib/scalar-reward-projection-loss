@@ -1,0 +1,51 @@
+{
+  "condorcet_3cycles": {
+    "observed_mean": 0.7906976744186046,
+    "null_mean": 0.318,
+    "null_std": 0.1055509740006848,
+    "z_score": 4.478382875136119,
+    "p_one_sided": 0.0
+  },
+  "condorcet_3cycle_fraction": {
+    "observed_mean": 0.0006935944512443899,
+    "null_mean": 0.0002789473684210526,
+    "null_std": 9.258857368481122e-05,
+    "z_score": 4.478382875136119,
+    "p_one_sided": 0.0
+  },
+  "odd_parity_4subsets": {
+    "observed_mean": 12.418604651162791,
+    "null_mean": 5.176139534883721,
+    "null_std": 1.6552129370431803,
+    "z_score": 4.375548882077238,
+    "p_one_sided": 0.0
+  },
+  "odd_parity_fraction": {
+    "observed_mean": 0.0025631794945640434,
+    "null_mean": 0.0010683466532267743,
+    "null_std": 0.00034163321713997526,
+    "z_score": 4.375548882077238,
+    "p_one_sided": 0.0
+  },
+  "beta_1_acyclic_complex": {
+    "observed_mean": 0.0,
+    "null_mean": 0.0,
+    "null_std": 0.0,
+    "z_score": NaN,
+    "p_one_sided": 1.0
+  },
+  "cohomology_class_nonzero": {
+    "observed_mean": 0.32558139534883723,
+    "null_mean": 0.19609302325581396,
+    "null_std": 0.053119944483149786,
+    "z_score": 2.437660154823738,
+    "p_one_sided": 0.008
+  },
+  "fraction_countries_cohom_nonzero": {
+    "observed_mean": 0.32558139534883723,
+    "null_mean": 0.19609302325581396,
+    "null_std": 0.053119944483149786,
+    "z_score": 2.437660154823738,
+    "p_one_sided": 0.008
+  }
+}

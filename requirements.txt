@@ -1,0 +1,8 @@
+jupyter
+matplotlib
+seaborn
+numpy
+click
+pandas
+scipy
+torch

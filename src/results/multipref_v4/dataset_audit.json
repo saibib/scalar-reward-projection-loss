@@ -1,0 +1,97 @@
+{
+  "raw_rows": 10461,
+  "flattened_annotation_rows": 31934,
+  "raw_columns": [
+    "comparison_id",
+    "prompt_id",
+    "text",
+    "model_a",
+    "completion_a",
+    "model_b",
+    "completion_b",
+    "source",
+    "category",
+    "subject_study",
+    "highest_level_degree",
+    "normal_worker_annotations",
+    "expert_worker_annotations"
+  ],
+  "detected_columns": {
+    "prompt_id": "prompt_id",
+    "prompt_text": "text",
+    "model_a": "model_a",
+    "model_b": "model_b",
+    "response_a": "completion_a",
+    "response_b": "completion_b",
+    "normal_annotations": "normal_worker_annotations",
+    "expert_annotations": "expert_worker_annotations",
+    "direct_evaluator": null
+  },
+  "alt_mode": "model",
+  "tournament_mode": "both",
+  "prompt_group_col": "prompt_id",
+  "preference_weighting": {
+    "tie": 0.0,
+    "slight": 0.5,
+    "clear": 1.0,
+    "ties_in_edges": "dropped because zero-weight observations do not add edge support",
+    "status": "descriptive; bootstrap and transitive-null uncertainty are not implemented in this script"
+  },
+  "n_prompts": 5307,
+  "n_prompt_texts": 5307,
+  "annotation_group_counts": {
+    "expert": 15997,
+    "normal": 15937
+  },
+  "n_evaluators": 227,
+  "n_user_ids": 227,
+  "n_alternatives": 6,
+  "overall_raw_counts": {
+    "B-is-slightly-better": 10490,
+    "B-is-clearly-better": 9253,
+    "A-is-slightly-better": 6981,
+    "A-is-clearly-better": 4123,
+    "Tie": 1087
+  },
+  "overall_sign_counts": {
+    "-1": 19743,
+    "1": 11104,
+    "0": 1087
+  },
+  "helpful_raw_counts": {
+    "B-is-slightly-better": 10578,
+    "B-is-clearly-better": 9327,
+    "A-is-slightly-better": 6848,
+    "A-is-clearly-better": 3894,
+    "Tie": 1287
+  },
+  "helpful_sign_counts": {
+    "-1": 19905,
+    "1": 10742,
+    "0": 1287
+  },
+  "truthful_raw_counts": {
+    "Tie": 24350,
+    "B-is-slightly-better": 2366,
+    "B-is-clearly-better": 2088,
+    "A-is-slightly-better": 1762,
+    "A-is-clearly-better": 1368
+  },
+  "truthful_sign_counts": {
+    "0": 24350,
+    "-1": 4454,
+    "1": 3130
+  },
+  "harmless_raw_counts": {
+    "Tie": 29723,
+    "B-is-clearly-better": 619,
+    "B-is-slightly-better": 536,
+    "A-is-slightly-better": 535,
+    "A-is-clearly-better": 521
+  },
+  "harmless_sign_counts": {
+    "0": 29723,
+    "-1": 1155,
+    "1": 1056
+  }
+}

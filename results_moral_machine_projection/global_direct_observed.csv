@@ -1,0 +1,3 @@
+scope,n_users,n_countries,n,condorcet_3cycles,condorcet_3cycle_fraction,num_4subsets,odd_parity_4subsets,odd_parity_fraction,cohomology_class_nonzero,beta_1_acyclic_complex,num_acyclic_triples,hodge_n_edges,hodge_gradient_energy,hodge_cyclic_residual_energy,hodge_total_energy,hodge_rho_cyc,strict_condorcet_3cycles,majority_tie_edges,min_abs_edge_margin
+global_direct_all_retained,1851181,229,20,0,0.0,4845,0,0.0,False,0,1140,190,58504518.600294,1054474.935480483,59558993.5357745,0.017704713811980483,0,0,0.0010597004184000967
+global_direct_eligible_countries,1845947,105,20,0,0.0,4845,0,0.0,False,0,1140,190,58339412.59516691,1051462.3551938143,59390874.95036057,0.017704106162312577,0,0,0.0010507616532248187

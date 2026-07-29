@@ -1,0 +1,16 @@
+model_i,model_j,annotation_count,normal_count,expert_count,overall_non_tie_count,helpful_non_tie_count,truthful_non_tie_count,harmless_non_tie_count
+allenai/tulu-2-7b,meta-llama/Meta-Llama-3-70B-Instruct,1860,935,925,1808,1814,497,172
+allenai/tulu-2-70b,gpt-4-turbo-2024-04-09,1851,930,921,1777,1810,398,104
+gpt-3.5-turbo-0125,meta-llama/Meta-Llama-3-70B-Instruct,1770,904,866,1702,1739,314,128
+allenai/tulu-2-7b,gpt-4-turbo-2024-04-09,1766,895,871,1714,1722,467,147
+allenai/tulu-2-70b,meta-llama/Llama-2-70b-chat-hf,1738,880,858,1679,1678,386,131
+allenai/tulu-2-7b,meta-llama/Llama-2-70b-chat-hf,1734,881,853,1679,1668,484,135
+allenai/tulu-2-70b,meta-llama/Meta-Llama-3-70B-Instruct,1733,863,870,1673,1690,388,99
+gpt-3.5-turbo-0125,gpt-4-turbo-2024-04-09,1643,827,816,1592,1601,296,88
+gpt-3.5-turbo-0125,meta-llama/Llama-2-70b-chat-hf,1634,819,815,1577,1594,385,124
+gpt-4-turbo-2024-04-09,meta-llama/Meta-Llama-3-70B-Instruct,1571,766,805,1518,1501,346,115
+gpt-4-turbo-2024-04-09,meta-llama/Llama-2-70b-chat-hf,1547,769,778,1494,1484,339,88
+allenai/tulu-2-70b,allenai/tulu-2-7b,1541,758,783,1482,1455,523,119
+allenai/tulu-2-7b,gpt-3.5-turbo-0125,1536,758,778,1475,1469,447,90
+meta-llama/Llama-2-70b-chat-hf,meta-llama/Meta-Llama-3-70B-Instruct,1472,724,748,1419,1411,331,137
+allenai/tulu-2-70b,gpt-3.5-turbo-0125,1438,706,732,1396,1381,362,101

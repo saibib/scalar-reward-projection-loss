@@ -1,0 +1,5 @@
+split_index,aspect,fit_ok,n_train_obs,train_weight,n_features,n_iter
+0,overall,True,17966,13165.0,10000,10
+0,helpful,True,18008,13165.5,10000,10
+0,truthful,True,4436,3262.0,10000,10
+0,harmless,True,1368,1050.0,10000,10
