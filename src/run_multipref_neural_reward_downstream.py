@@ -288,8 +288,7 @@ def train_neural_reward_model(
     total_updates = max(1, args.epochs * updates_per_epoch)
     warmup_steps = int(round(args.warmup_ratio * total_updates))
     scheduler = get_scheduler(
-        "linear",
-        optimizer=optimizer,
+        optimizer,
         num_warmup_steps=warmup_steps,
         num_training_steps=total_updates,
     )
