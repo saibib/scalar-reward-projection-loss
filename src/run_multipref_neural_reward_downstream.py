@@ -599,7 +599,23 @@ def combine_outputs(pattern: str, outdir: Path) -> None:
     matches = sorted(path for path in glob.glob(pattern) if path.endswith("_region_results.csv"))
     if not matches:
         raise SystemExit(f"No region-result files matched --combine-glob: {pattern}")
-    frames = [pd.read_csv(path) for path in matches]
+    frames = []
+    skipped_empty = []
+    for path in matches:
+        try:
+            frame = pd.read_csv(path)
+        except pd.errors.EmptyDataError:
+            skipped_empty.append(path)
+            continue
+        if frame.empty:
+            skipped_empty.append(path)
+            continue
+        frames.append(frame)
+    if not frames:
+        raise SystemExit(
+            "All matched region-result files were empty. Check the split logs and "
+            "confirm --groups matches one of: all, normal, expert."
+        )
     rows = pd.concat(frames, ignore_index=True)
     outdir.mkdir(parents=True, exist_ok=True)
     result_path, _fit_path, summary_path, metadata_path = output_paths(outdir, split_index=None)
@@ -610,6 +626,8 @@ def combine_outputs(pattern: str, outdir: Path) -> None:
         "mode": "combine",
         "combine_glob": pattern,
         "n_input_files": len(matches),
+        "n_nonempty_input_files": len(frames),
+        "skipped_empty_files": skipped_empty,
         "n_region_rows": int(len(rows)),
         "result_path": str(result_path),
         "summary_path": str(summary_path),

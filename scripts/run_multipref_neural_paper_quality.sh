@@ -30,7 +30,7 @@ MAX_LENGTH="${MAX_LENGTH:-512}"
 PRECISION="${PRECISION:-bf16}"
 NUM_WORKERS="${NUM_WORKERS:-2}"
 GPUS_STRING="${GPUS:-0 1}"
-GROUPS="${GROUPS:-all normal expert}"
+PREF_GROUPS="${PREF_GROUPS:-all normal expert}"
 ASPECTS="${ASPECTS:-overall helpful truthful harmless}"
 N_BOOTSTRAP="${N_BOOTSTRAP:-2000}"
 N_PERMUTATIONS="${N_PERMUTATIONS:-5000}"
@@ -48,7 +48,7 @@ echo "Model: ${MODEL_NAME}"
 echo "Output: ${OUTDIR}"
 echo "Splits: ${N_SPLITS}"
 echo "GPUs: ${GPU_LIST[*]}"
-echo "Groups: ${GROUPS}"
+echo "Preference groups: ${PREF_GROUPS}"
 echo "Aspects: ${ASPECTS}"
 
 pids=()
@@ -59,7 +59,7 @@ while [[ "${split}" -lt "${N_SPLITS}" ]]; do
   echo "Launching split ${split} on GPU ${gpu}; log=${log_path}"
   CUDA_VISIBLE_DEVICES="${gpu}" "${PYTHON_BIN}" src/run_multipref_neural_reward_downstream.py \
     --model-name "${MODEL_NAME}" \
-    --groups ${GROUPS} \
+    --groups ${PREF_GROUPS} \
     --aspects ${ASPECTS} \
     --n-splits "${N_SPLITS}" \
     --split-index "${split}" \
