@@ -163,6 +163,10 @@ data/**/*.arrow
 # Ignore generated caches and bulky binary arrays
 *.npz
 *.npy
+*.pt
+*.bin
+*.safetensors
+src/results/**/models/
 
 # Ignore local temporary/render outputs
 tmp/
