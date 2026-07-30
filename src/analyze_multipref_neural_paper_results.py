@@ -333,6 +333,30 @@ def bh_fdr(pvals: Sequence[float]) -> List[float]:
     return q.tolist()
 
 
+def simple_markdown_table(df: pd.DataFrame) -> str:
+    """Render a small DataFrame as a GitHub-flavored Markdown table.
+
+    pandas.DataFrame.to_markdown requires the optional tabulate dependency.
+    Keeping this local avoids another package requirement on GPU devboxes.
+    """
+    if df.empty:
+        return ""
+    text = df.astype(str)
+    headers = list(text.columns)
+    rows = text.values.tolist()
+    widths = [
+        max(len(str(header)), *(len(str(row[col_idx])) for row in rows))
+        for col_idx, header in enumerate(headers)
+    ]
+
+    def render_row(values: Sequence[str]) -> str:
+        cells = [str(value).ljust(widths[idx]) for idx, value in enumerate(values)]
+        return "| " + " | ".join(cells) + " |"
+
+    separator = "| " + " | ".join("-" * width for width in widths) + " |"
+    return "\n".join([render_row(headers), separator, *(render_row(row) for row in rows)])
+
+
 def primary_table(
     regions: pd.DataFrame,
     outcomes: Sequence[str],
@@ -499,7 +523,7 @@ def markdown_report(primary: pd.DataFrame, metadata: Dict[str, Any]) -> str:
     for col in table.columns:
         if col != "outcome":
             table[col] = table[col].map(lambda x: "" if pd.isna(x) else f"{x:.4g}")
-    lines.append(table.to_markdown(index=False))
+    lines.append(simple_markdown_table(table))
     lines.extend(
         [
             "",
