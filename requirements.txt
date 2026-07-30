@@ -6,3 +6,7 @@ click
 pandas
 scipy
 torch
+datasets
+scikit-learn
+sentencepiece
+transformers

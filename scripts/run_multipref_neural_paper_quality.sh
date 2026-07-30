@@ -11,6 +11,9 @@
 #   N_SPLITS=10 EPOCHS=2 MODEL_NAME=roberta-large \
 #     bash scripts/run_multipref_neural_paper_quality.sh
 #
+#   N_SPLITS=10 EPOCHS=2 MODEL_NAME=microsoft/deberta-v3-large \
+#     bash scripts/run_multipref_neural_paper_quality.sh
+#
 #   GPUS="0 1" BATCH_SIZE=8 PRECISION=bf16 \
 #     bash scripts/run_multipref_neural_paper_quality.sh
 #
@@ -20,7 +23,8 @@
 set -euo pipefail
 
 MODEL_NAME="${MODEL_NAME:-roberta-large}"
-OUTDIR="${OUTDIR:-src/results/multipref_neural_reward_roberta_large_full}"
+MODEL_SLUG="$(printf "%s" "${MODEL_NAME}" | tr '/:.' '___' | tr -cs '[:alnum:]_' '_')"
+OUTDIR="${OUTDIR:-src/results/multipref_neural_reward_${MODEL_SLUG}_full}"
 N_SPLITS="${N_SPLITS:-10}"
 EPOCHS="${EPOCHS:-2}"
 BATCH_SIZE="${BATCH_SIZE:-8}"
