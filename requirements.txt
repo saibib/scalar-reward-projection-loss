@@ -9,4 +9,6 @@ torch
 datasets
 scikit-learn
 sentencepiece
+tiktoken
 transformers
+protobuf
