@@ -31,6 +31,7 @@ class PredictionMetricsSignSanityTest(unittest.TestCase):
         self.assertEqual(metrics["test_majority_edge_error"], 0.0)
         self.assertEqual(metrics["test_flipped_majority_edge_error"], 1.0)
         self.assertLess(metrics["test_flip_majority_edge_error_gain"], 0.0)
+        self.assertEqual(metrics["test_row_edge_target_mismatch_rate"], 0.0)
 
     def test_pair_direction_matches_row_direction_when_b_is_sorted_i(self) -> None:
         obs = pd.DataFrame(
@@ -51,6 +52,7 @@ class PredictionMetricsSignSanityTest(unittest.TestCase):
         self.assertEqual(metrics["test_majority_edge_error"], 0.0)
         self.assertEqual(metrics["test_flipped_majority_edge_error"], 1.0)
         self.assertLess(metrics["test_flip_majority_edge_error_gain"], 0.0)
+        self.assertEqual(metrics["test_row_edge_target_mismatch_rate"], 0.0)
 
     def test_tied_predicted_edge_counts_as_half_error(self) -> None:
         obs = pd.DataFrame(

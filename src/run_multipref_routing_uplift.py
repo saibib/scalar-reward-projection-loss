@@ -89,6 +89,7 @@ EMPTY_SIGN_SANITY_METRICS = {
     "test_pair_mean_pred_i": np.nan,
     "test_pair_obs_majority_i_rate": np.nan,
     "test_pair_pred_majority_i_rate": np.nan,
+    "test_row_edge_target_mismatch_rate": np.nan,
 }
 
 
@@ -139,6 +140,9 @@ def prediction_metrics(
     target_a = (obs["row_sign"].to_numpy(dtype=int) > 0).astype(float)
     w = obs["weight"].to_numpy(dtype=float)
     p_a = np.clip(np.asarray(p_a, dtype=float), 1e-12, 1.0 - 1e-12)
+    row_target_i = np.where(obs["model_a"].to_numpy(dtype=str) == obs["i"].to_numpy(dtype=str), target_a, 1.0 - target_a)
+    sorted_target_i = (obs["sign"].to_numpy(dtype=int) > 0).astype(float)
+    target_mismatch = (row_target_i != sorted_target_i).astype(float)
     log_loss = -target_a * np.log(p_a) - (1.0 - target_a) * np.log(1.0 - p_a)
     brier = (p_a - target_a) ** 2
     correct = ((p_a >= 0.5) == (target_a > 0.5)).astype(float)
@@ -209,6 +213,7 @@ def prediction_metrics(
         "test_pair_mean_pred_i": float(np.average(pair_pred_rates, weights=pair_weights)),
         "test_pair_obs_majority_i_rate": float(np.average(pair_obs_rates > 0.5, weights=pair_weights)),
         "test_pair_pred_majority_i_rate": float(np.average(pair_pred_rates > 0.5, weights=pair_weights)),
+        "test_row_edge_target_mismatch_rate": float(np.average(target_mismatch, weights=w)),
     }
 
 

@@ -62,6 +62,7 @@ SIGN_SANITY_COLS = [
     "test_pair_mean_pred_i",
     "test_pair_obs_majority_i_rate",
     "test_pair_pred_majority_i_rate",
+    "test_row_edge_target_mismatch_rate",
 ]
 CONTROL_COLS = [
     "train_mean_abs_margin",
@@ -585,6 +586,7 @@ def markdown_report(primary: pd.DataFrame, metadata: Dict[str, Any], sanity: Opt
                 "mean_test_flip_error_rate_gain",
                 "mean_test_flip_majority_edge_error_gain",
                 "mean_test_majority_minus_row_error",
+                "mean_test_row_edge_target_mismatch_rate",
             ]:
                 if col in row.index and pd.notna(row[col]):
                     lines.append(f"- {col}: {float(row[col]):.4g}")
