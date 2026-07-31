@@ -4,6 +4,7 @@ seaborn
 numpy
 click
 pandas
+pyarrow
 scipy
 torch
 datasets
@@ -12,3 +13,6 @@ sentencepiece
 tiktoken
 transformers
 protobuf
+accelerate
+peft
+trl
