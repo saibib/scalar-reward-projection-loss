@@ -47,6 +47,22 @@ DEFAULT_OUTCOMES = [
     "test_pair_calibration_mae",
     "test_majority_edge_error",
 ]
+SIGN_SANITY_COLS = [
+    "test_flipped_log_loss",
+    "test_flipped_brier",
+    "test_flipped_error_rate",
+    "test_flipped_pair_calibration_mae",
+    "test_flipped_majority_edge_error",
+    "test_flip_error_rate_gain",
+    "test_flip_majority_edge_error_gain",
+    "test_majority_minus_row_error",
+    "test_mean_target_a",
+    "test_mean_p_a",
+    "test_pair_mean_obs_i",
+    "test_pair_mean_pred_i",
+    "test_pair_obs_majority_i_rate",
+    "test_pair_pred_majority_i_rate",
+]
 CONTROL_COLS = [
     "train_mean_abs_margin",
     "train_min_edge_support",
@@ -129,6 +145,7 @@ def aggregate_regions(rows: pd.DataFrame, outcomes: Sequence[str]) -> pd.DataFra
         "test_n_obs",
         "test_edges",
         *outcomes,
+        *SIGN_SANITY_COLS,
     ]
     numeric_cols = [col for col in numeric_cols if col in rows.columns]
     agg_spec: Dict[str, Any] = {col: (col, "mean") for col in numeric_cols if col != "split_index"}
@@ -480,7 +497,28 @@ def scope_summary(regions: pd.DataFrame, outcomes: Sequence[str], min_regions: i
     return pd.DataFrame(rows)
 
 
-def markdown_report(primary: pd.DataFrame, metadata: Dict[str, Any]) -> str:
+def sign_sanity_table(regions: pd.DataFrame) -> pd.DataFrame:
+    summary_cols = ["test_error_rate", "test_majority_edge_error", *SIGN_SANITY_COLS]
+    present = [col for col in summary_cols if col in regions.columns]
+    if not present:
+        return pd.DataFrame()
+    rows: List[Dict[str, Any]] = []
+    scopes: List[Tuple[str, pd.DataFrame]] = [("all", regions)]
+    for group, gdf in regions.groupby("group", sort=True):
+        scopes.append((f"group={group}", gdf))
+    for aspect, adf in regions.groupby("aspect", sort=True):
+        scopes.append((f"aspect={aspect}", adf))
+
+    for scope, d0 in scopes:
+        row: Dict[str, Any] = {"scope": scope, "n_regions": int(len(d0))}
+        for col in present:
+            vals = pd.to_numeric(d0[col], errors="coerce").replace([np.inf, -np.inf], np.nan)
+            row[f"mean_{col}"] = float(vals.mean()) if vals.notna().any() else np.nan
+        rows.append(row)
+    return pd.DataFrame(rows)
+
+
+def markdown_report(primary: pd.DataFrame, metadata: Dict[str, Any], sanity: Optional[pd.DataFrame] = None) -> str:
     lines = [
         "# MultiPref Neural Reward Paper-Quality Analysis",
         "",
@@ -534,6 +572,29 @@ def markdown_report(primary: pd.DataFrame, metadata: Dict[str, Any]) -> str:
             "For log loss, Brier, and error rate, a null result should not be treated as a refutation of the residual diagnostic.",
         ]
     )
+    if sanity is not None and not sanity.empty:
+        all_row = sanity[sanity["scope"] == "all"]
+        if not all_row.empty:
+            row = all_row.iloc[0]
+            lines.extend(["", "## Sign Sanity Check", ""])
+            for col in [
+                "mean_test_error_rate",
+                "mean_test_flipped_error_rate",
+                "mean_test_majority_edge_error",
+                "mean_test_flipped_majority_edge_error",
+                "mean_test_flip_error_rate_gain",
+                "mean_test_flip_majority_edge_error_gain",
+                "mean_test_majority_minus_row_error",
+            ]:
+                if col in row.index and pd.notna(row[col]):
+                    lines.append(f"- {col}: {float(row[col]):.4g}")
+            lines.extend(
+                [
+                    "",
+                    "Positive flip-gain values mean replacing p with 1-p would reduce that error.",
+                    "A large majority-minus-row-error gap flags possible edge-level orientation or aggregation pathologies.",
+                ]
+            )
     return "\n".join(lines) + "\n"
 
 
@@ -551,12 +612,16 @@ def main() -> None:
     split_rows_path = args.outdir / "neural_reward_split_rows.csv"
     aggregate_path = args.outdir / "neural_reward_aggregated_regions.csv"
     primary_path = args.outdir / "neural_reward_primary_effects.csv"
+    sanity_path = args.outdir / "neural_reward_sign_sanity.csv"
     metadata_path = args.outdir / "neural_reward_paper_metadata.json"
     report_path = args.outdir / "neural_reward_paper_report.md"
 
     rows.to_csv(split_rows_path, index=False)
     regions.to_csv(aggregate_path, index=False)
     primary.to_csv(primary_path, index=False)
+    sanity = sign_sanity_table(regions)
+    if not sanity.empty:
+        sanity.to_csv(sanity_path, index=False)
 
     metadata = {
         "region_glob": args.region_glob,
@@ -574,8 +639,10 @@ def main() -> None:
         "aggregate_path": str(aggregate_path),
         "primary_path": str(primary_path),
     }
+    if not sanity.empty:
+        metadata["sign_sanity_path"] = str(sanity_path)
     metadata_path.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
-    report_path.write_text(markdown_report(primary, metadata), encoding="utf-8")
+    report_path.write_text(markdown_report(primary, metadata, sanity=sanity), encoding="utf-8")
 
     if args.scope_summary:
         scopes = scope_summary(regions, present_outcomes, min_regions=args.min_regions)
@@ -588,6 +655,8 @@ def main() -> None:
     print(f"Wrote {split_rows_path}")
     print(f"Wrote {aggregate_path}")
     print(f"Wrote {primary_path}")
+    if not sanity.empty:
+        print(f"Wrote {sanity_path}")
     print(f"Wrote {metadata_path}")
     print(f"Wrote {report_path}")
 

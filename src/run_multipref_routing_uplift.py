@@ -74,6 +74,23 @@ LOSS_METRICS = [
     "majority_edge_error",
 ]
 
+EMPTY_SIGN_SANITY_METRICS = {
+    "test_flipped_log_loss": np.nan,
+    "test_flipped_brier": np.nan,
+    "test_flipped_error_rate": np.nan,
+    "test_flipped_pair_calibration_mae": np.nan,
+    "test_flipped_majority_edge_error": np.nan,
+    "test_flip_error_rate_gain": np.nan,
+    "test_flip_majority_edge_error_gain": np.nan,
+    "test_majority_minus_row_error": np.nan,
+    "test_mean_target_a": np.nan,
+    "test_mean_p_a": np.nan,
+    "test_pair_mean_obs_i": np.nan,
+    "test_pair_mean_pred_i": np.nan,
+    "test_pair_obs_majority_i_rate": np.nan,
+    "test_pair_pred_majority_i_rate": np.nan,
+}
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
@@ -116,6 +133,7 @@ def prediction_metrics(
             "test_calibration_abs_error": np.nan,
             "test_pair_calibration_mae": np.nan,
             "test_majority_edge_error": np.nan,
+            **EMPTY_SIGN_SANITY_METRICS,
         }
 
     target_a = (obs["row_sign"].to_numpy(dtype=int) > 0).astype(float)
@@ -125,39 +143,72 @@ def prediction_metrics(
     brier = (p_a - target_a) ** 2
     correct = ((p_a >= 0.5) == (target_a > 0.5)).astype(float)
 
-    eval_df = obs.copy()
-    eval_df["p_i"] = np.where(eval_df["model_a"] == eval_df["i"], p_a, 1.0 - p_a)
-    eval_df["target_i"] = (eval_df["sign"] > 0).astype(float)
+    def pairwise_summaries(edge_p_a: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        eval_df = obs.copy()
+        eval_df["p_i"] = np.where(eval_df["model_a"] == eval_df["i"], edge_p_a, 1.0 - edge_p_a)
+        eval_df["target_i"] = (eval_df["sign"] > 0).astype(float)
 
-    pair_rows = []
-    for (_i, _j), g in eval_df.groupby(["i", "j"], sort=True):
-        gw = g["weight"].to_numpy(dtype=float)
-        pair_weight = float(gw.sum())
-        obs_rate = float(np.average(g["target_i"], weights=gw))
-        pred_rate = float(np.average(g["p_i"], weights=gw))
-        heldout_margin = 2.0 * obs_rate - 1.0
-        pred_margin = 2.0 * pred_rate - 1.0
-        if math.isclose(heldout_margin, 0.0) or math.isclose(pred_margin, 0.0):
-            majority_error = 0.5
-        else:
-            majority_error = float(np.sign(heldout_margin) != np.sign(pred_margin))
-        pair_rows.append((pair_weight, abs(obs_rate - pred_rate), majority_error))
+        pair_rows = []
+        for (_i, _j), g in eval_df.groupby(["i", "j"], sort=True):
+            gw = g["weight"].to_numpy(dtype=float)
+            pair_weight = float(gw.sum())
+            obs_rate = float(np.average(g["target_i"], weights=gw))
+            pred_rate = float(np.average(g["p_i"], weights=gw))
+            heldout_margin = 2.0 * obs_rate - 1.0
+            pred_margin = 2.0 * pred_rate - 1.0
+            if math.isclose(heldout_margin, 0.0) or math.isclose(pred_margin, 0.0):
+                majority_error = 0.5
+            else:
+                majority_error = float(np.sign(heldout_margin) != np.sign(pred_margin))
+            pair_rows.append((pair_weight, obs_rate, pred_rate, abs(obs_rate - pred_rate), majority_error))
+        if not pair_rows:
+            empty = np.array([], dtype=float)
+            return empty, empty, empty, empty, empty
+        return tuple(np.array([r[idx] for r in pair_rows], dtype=float) for idx in range(5))  # type: ignore[return-value]
 
-    pair_weights = np.array([r[0] for r in pair_rows], dtype=float)
-    pair_cal_errors = np.array([r[1] for r in pair_rows], dtype=float)
-    pair_majority_errors = np.array([r[2] for r in pair_rows], dtype=float)
+    pair_weights, pair_obs_rates, pair_pred_rates, pair_cal_errors, pair_majority_errors = pairwise_summaries(p_a)
+    flipped_p_a = 1.0 - p_a
+    flipped_log_loss = -target_a * np.log(flipped_p_a) - (1.0 - target_a) * np.log(1.0 - flipped_p_a)
+    flipped_brier = (flipped_p_a - target_a) ** 2
+    flipped_correct = ((flipped_p_a >= 0.5) == (target_a > 0.5)).astype(float)
+    (
+        flipped_pair_weights,
+        _flipped_pair_obs_rates,
+        flipped_pair_pred_rates,
+        flipped_pair_cal_errors,
+        flipped_pair_majority_errors,
+    ) = pairwise_summaries(flipped_p_a)
+
+    error_rate = float(1.0 - np.average(correct, weights=w))
+    flipped_error_rate = float(1.0 - np.average(flipped_correct, weights=w))
+    majority_edge_error = float(np.average(pair_majority_errors, weights=pair_weights))
+    flipped_majority_edge_error = float(np.average(flipped_pair_majority_errors, weights=flipped_pair_weights))
 
     return {
         "test_weight": float(w.sum()),
         "test_n_obs": int(len(obs)),
-        "test_edges": int(len(pair_rows)),
+        "test_edges": int(len(pair_weights)),
         "test_log_loss": float(np.average(log_loss, weights=w)),
         "test_brier": float(np.average(brier, weights=w)),
         "test_accuracy": float(np.average(correct, weights=w)),
-        "test_error_rate": float(1.0 - np.average(correct, weights=w)),
+        "test_error_rate": error_rate,
         "test_calibration_abs_error": float(abs(np.average(target_a, weights=w) - np.average(p_a, weights=w))),
         "test_pair_calibration_mae": float(np.average(pair_cal_errors, weights=pair_weights)),
-        "test_majority_edge_error": float(np.average(pair_majority_errors, weights=pair_weights)),
+        "test_majority_edge_error": majority_edge_error,
+        "test_flipped_log_loss": float(np.average(flipped_log_loss, weights=w)),
+        "test_flipped_brier": float(np.average(flipped_brier, weights=w)),
+        "test_flipped_error_rate": flipped_error_rate,
+        "test_flipped_pair_calibration_mae": float(np.average(flipped_pair_cal_errors, weights=flipped_pair_weights)),
+        "test_flipped_majority_edge_error": flipped_majority_edge_error,
+        "test_flip_error_rate_gain": error_rate - flipped_error_rate,
+        "test_flip_majority_edge_error_gain": majority_edge_error - flipped_majority_edge_error,
+        "test_majority_minus_row_error": majority_edge_error - error_rate,
+        "test_mean_target_a": float(np.average(target_a, weights=w)),
+        "test_mean_p_a": float(np.average(p_a, weights=w)),
+        "test_pair_mean_obs_i": float(np.average(pair_obs_rates, weights=pair_weights)),
+        "test_pair_mean_pred_i": float(np.average(pair_pred_rates, weights=pair_weights)),
+        "test_pair_obs_majority_i_rate": float(np.average(pair_obs_rates > 0.5, weights=pair_weights)),
+        "test_pair_pred_majority_i_rate": float(np.average(pair_pred_rates > 0.5, weights=pair_weights)),
     }
 
 
