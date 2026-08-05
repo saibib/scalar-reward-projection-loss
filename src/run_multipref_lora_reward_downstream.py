@@ -78,7 +78,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--weight-decay", type=float, default=0.0)
     parser.add_argument("--warmup-ratio", type=float, default=0.03)
     parser.add_argument("--max-length", type=int, default=768)
-    parser.add_argument("--precision", choices=["fp32", "bf16", "fp16"], default="bf16")
+    parser.add_argument("--precision", choices=["fp32", "bf16", "fp16"], default="fp32")
     parser.add_argument("--gradient-checkpointing", action="store_true")
     parser.add_argument("--num-workers", type=int, default=2)
     parser.add_argument("--lora-r", type=int, default=16)
@@ -86,6 +86,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--lora-dropout", type=float, default=0.05)
     parser.add_argument("--lora-target-modules", nargs="+", default=DEFAULT_TARGET_MODULES)
     parser.add_argument("--modules-to-save", nargs="+", default=["score"])
+    parser.add_argument("--zero-init-score", action="store_true", default=True)
+    parser.add_argument("--no-zero-init-score", action="store_false", dest="zero_init_score")
+    parser.add_argument("--trainable-fp32", action="store_true", default=True)
+    parser.add_argument("--no-trainable-fp32", action="store_false", dest="trainable_fp32")
     parser.add_argument("--trust-remote-code", action="store_true")
     parser.add_argument("--min-train-edge-weight", type=float, default=5.0)
     parser.add_argument("--min-test-weight", type=float, default=5.0)
@@ -150,7 +154,7 @@ def dtype_for_precision(torch: Any, precision: str, device: Any) -> Optional[Any
     return torch.float16
 
 
-def make_lora_reward_model(args: argparse.Namespace, device: Any) -> Any:
+def make_lora_reward_model(args: argparse.Namespace, device: Any, pad_token_id: Optional[int]) -> Any:
     (
         torch,
         _F,
@@ -170,10 +174,17 @@ def make_lora_reward_model(args: argparse.Namespace, device: Any) -> Any:
         torch_dtype=dtype_for_precision(torch, args.precision, device),
         trust_remote_code=args.trust_remote_code,
     )
+    if pad_token_id is not None:
+        model.config.pad_token_id = int(pad_token_id)
     if hasattr(model.config, "use_cache"):
         model.config.use_cache = False
     if args.gradient_checkpointing and hasattr(model, "gradient_checkpointing_enable"):
         model.gradient_checkpointing_enable()
+    if args.zero_init_score and hasattr(model, "score"):
+        with torch.no_grad():
+            model.score.weight.zero_()
+            if getattr(model.score, "bias", None) is not None:
+                model.score.bias.zero_()
 
     lora_config = LoraConfig(
         task_type=TaskType.SEQ_CLS,
@@ -184,7 +195,12 @@ def make_lora_reward_model(args: argparse.Namespace, device: Any) -> Any:
         modules_to_save=args.modules_to_save,
         bias="none",
     )
-    return get_peft_model(model, lora_config).to(device)
+    model = get_peft_model(model, lora_config)
+    if args.trainable_fp32:
+        for param in model.parameters():
+            if param.requires_grad:
+                param.data = param.data.float()
+    return model.to(device)
 
 
 def score_batch(model: Any, batch: Dict[str, Any], suffix: str) -> Any:
@@ -193,6 +209,14 @@ def score_batch(model: Any, batch: Dict[str, Any], suffix: str) -> Any:
         attention_mask=batch[f"attention_mask_{suffix}"],
     )
     return outputs.logits.squeeze(-1)
+
+
+def assert_finite_tensor(torch: Any, tensor: Any, name: str, split_index: int, group: str, aspect: str, step: Optional[int]) -> None:
+    if not torch.isfinite(tensor).all():
+        where = f"split={split_index} group={group} aspect={aspect}"
+        if step is not None:
+            where += f" step={step}"
+        raise FloatingPointError(f"Non-finite {name} during LoRA reward run at {where}.")
 
 
 def train_lora_reward_model(
@@ -226,7 +250,7 @@ def train_lora_reward_model(
         tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "right"
 
-    model = make_lora_reward_model(args, device)
+    model = make_lora_reward_model(args, device, tokenizer.pad_token_id)
     if getattr(model.config, "pad_token_id", None) is None:
         model.config.pad_token_id = tokenizer.pad_token_id
     if hasattr(model, "print_trainable_parameters"):
@@ -266,10 +290,13 @@ def train_lora_reward_model(
             batch = move_batch(batch, device)
             with autocast_context(torch, device, args.precision):
                 logits = score_batch(model, batch, "a") - score_batch(model, batch, "b")
+                assert_finite_tensor(torch, logits, "train logits", split_index, group, aspect, step)
                 losses = F.binary_cross_entropy_with_logits(logits, batch["target"], reduction="none")
+                assert_finite_tensor(torch, losses, "train losses", split_index, group, aspect, step)
                 weights = batch["weight"]
                 loss = (losses * weights).sum() / weights.sum().clamp_min(1e-8)
                 loss = loss / max(1, args.grad_accum)
+                assert_finite_tensor(torch, loss, "train loss", split_index, group, aspect, step)
             scaler.scale(loss).backward()
 
             weighted_loss_sum += float((losses.detach() * weights).sum().cpu())
@@ -284,6 +311,11 @@ def train_lora_reward_model(
                 update_count += 1
 
         epoch_loss = weighted_loss_sum / max(weight_sum, 1e-8)
+        if not math.isfinite(epoch_loss):
+            raise FloatingPointError(
+                f"Non-finite epoch loss during LoRA reward run at split={split_index} "
+                f"group={group} aspect={aspect}."
+            )
         epoch_losses.append(epoch_loss)
         print(
             f"split={split_index} group={group} aspect={aspect} "
@@ -311,6 +343,8 @@ def train_lora_reward_model(
         "lora_dropout": float(args.lora_dropout),
         "lora_target_modules": " ".join(args.lora_target_modules),
         "modules_to_save": " ".join(args.modules_to_save),
+        "zero_init_score": bool(args.zero_init_score),
+        "trainable_fp32": bool(args.trainable_fp32),
         "updates": int(update_count),
         "train_seconds": float(time.time() - start),
         "final_train_loss": float(epoch_losses[-1]) if epoch_losses else np.nan,
@@ -341,10 +375,11 @@ def predict_p_a(
     model.eval()
     probs: List[np.ndarray] = []
     with torch.no_grad():
-        for batch in loader:
+        for step, batch in enumerate(loader, start=1):
             batch = move_batch(batch, device)
             with autocast_context(torch, device, args.precision):
                 logits = score_batch(model, batch, "a") - score_batch(model, batch, "b")
+            assert_finite_tensor(torch, logits, "eval logits", -1, "predict", "predict", step)
             probs.append(torch.sigmoid(logits.float()).detach().cpu().numpy())
     if not probs:
         return np.array([], dtype=float)
@@ -550,6 +585,8 @@ def run_training(args: argparse.Namespace) -> None:
         "lora_dropout": args.lora_dropout,
         "lora_target_modules": args.lora_target_modules,
         "modules_to_save": args.modules_to_save,
+        "zero_init_score": args.zero_init_score,
+        "trainable_fp32": args.trainable_fp32,
         "min_train_edge_weight": args.min_train_edge_weight,
         "min_test_weight": args.min_test_weight,
         "min_test_edges": args.min_test_edges,
