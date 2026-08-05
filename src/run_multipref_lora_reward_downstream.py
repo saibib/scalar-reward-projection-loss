@@ -174,6 +174,8 @@ def make_lora_reward_model(args: argparse.Namespace, device: Any, pad_token_id: 
         torch_dtype=dtype_for_precision(torch, args.precision, device),
         trust_remote_code=args.trust_remote_code,
     )
+    if args.precision == "fp32":
+        model = model.float()
     if pad_token_id is not None:
         model.config.pad_token_id = int(pad_token_id)
     if hasattr(model.config, "use_cache"):
@@ -196,7 +198,7 @@ def make_lora_reward_model(args: argparse.Namespace, device: Any, pad_token_id: 
         bias="none",
     )
     model = get_peft_model(model, lora_config)
-    if args.trainable_fp32:
+    if args.trainable_fp32 and args.precision == "fp32":
         for param in model.parameters():
             if param.requires_grad:
                 param.data = param.data.float()
