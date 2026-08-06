@@ -31,6 +31,11 @@ import numpy as np
 import pandas as pd
 
 from run_multipref_cycles_v4 import ASPECTS
+from reward_projection_diagnostics import (
+    COMPARISON_METRICS,
+    edge_lookup_predictions,
+    projection_diagnostics,
+)
 from run_multipref_downstream_alignment import (
     aggregate_edges,
     hodge_residual,
@@ -46,6 +51,7 @@ from run_multipref_neural_reward_downstream import (
     make_pair_dataset_class,
     move_batch,
     response_texts,
+    token_truncation_stats,
 )
 from run_multipref_routing_uplift import prediction_metrics
 from run_multipref_text_reward_downstream import flatten_annotations, sorted_edge_observations
@@ -98,6 +104,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-triplets", type=int, default=None, help="Optional cap for smoke tests.")
     parser.add_argument("--max-raw-rows", type=int, default=None, help="Optional row cap for smoke tests.")
     parser.add_argument("--max-train-obs", type=int, default=None, help="Optional training observation cap.")
+    parser.add_argument("--include-same-model-train", action="store_true", default=True)
+    parser.add_argument("--exclude-same-model-train", action="store_false", dest="include_same_model_train")
+    parser.add_argument("--tie-training", choices=["drop", "half"], default="half")
+    parser.add_argument("--tie-weight", type=float, default=1.0)
     parser.add_argument("--save-model", action="store_true", help="Save LoRA adapters and tokenizers.")
     parser.add_argument(
         "--combine-glob",
@@ -119,6 +129,11 @@ def output_paths(outdir: Path, split_index: Optional[int]) -> Tuple[Path, Path, 
         outdir / f"{stem}_summary.csv",
         outdir / f"{stem}_metadata.json",
     )
+
+
+def prediction_output_path(outdir: Path, split_index: Optional[int]) -> Path:
+    stem = "multipref_lora_reward" if split_index is None else f"multipref_lora_reward_split_{split_index:04d}"
+    return outdir / f"{stem}_predictions.csv"
 
 
 def import_lora_stack():
@@ -234,7 +249,8 @@ def train_lora_reward_model(
 
     if train_obs.empty:
         return None, None, {"fit_ok": False, "reason": "empty_train"}
-    if train_obs["row_sign"].nunique() < 2:
+    target_values = train_obs["target"] if "target" in train_obs else (train_obs["row_sign"] > 0).astype(float)
+    if target_values.nunique() < 2:
         return None, None, {"fit_ok": False, "reason": "single_class"}
     if args.max_train_obs is not None and len(train_obs) > args.max_train_obs:
         train_obs = train_obs.sample(n=args.max_train_obs, random_state=args.seed + split_index).copy()
@@ -251,6 +267,7 @@ def train_lora_reward_model(
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "right"
+    truncation_meta = token_truncation_stats(tokenizer, train_obs, docs_a, docs_b, args.max_length)
 
     model = make_lora_reward_model(args, device, tokenizer.pad_token_id)
     if getattr(model.config, "pad_token_id", None) is None:
@@ -350,6 +367,7 @@ def train_lora_reward_model(
         "updates": int(update_count),
         "train_seconds": float(time.time() - start),
         "final_train_loss": float(epoch_losses[-1]) if epoch_losses else np.nan,
+        **truncation_meta,
     }
     return model, tokenizer, fit_meta
 
@@ -419,6 +437,15 @@ def analyze_triplets(
             continue
         cycle = triplet_cycle_stats(train_edges, triplet, min_support=args.min_train_edge_weight, tau=args.tau)
         evaluation = prediction_metrics(test_region, test_region["neural_p_a"].to_numpy(dtype=float))
+        projection = projection_diagnostics(
+            train_edges,
+            triplet,
+            min_support=args.min_train_edge_weight,
+        )
+        edge_lookup = prediction_metrics(
+            test_region,
+            edge_lookup_predictions(train_edges, test_region, smoothing=1.0),
+        )
 
         edge_supports = eligible_train_edges["support"].to_numpy(dtype=float)
         edge_margins = eligible_train_edges["margin"].to_numpy(dtype=float)
@@ -447,7 +474,11 @@ def analyze_triplets(
         }
         row.update({f"train_{k}": v for k, v in residual.items()})
         row.update({f"train_{k}": v for k, v in cycle.items()})
+        row.update({f"train_{k}": v for k, v in projection.items()})
         row.update(evaluation)
+        row.update({f"edge_lookup_{k}": v for k, v in edge_lookup.items() if k in COMPARISON_METRICS})
+        for metric in COMPARISON_METRICS:
+            row[f"uplift_{metric}"] = float(evaluation[metric]) - float(edge_lookup[metric])
         rows.append(row)
     return rows
 
@@ -484,12 +515,13 @@ def run_training(args: argparse.Namespace) -> None:
 
     args.outdir.mkdir(parents=True, exist_ok=True)
     raw = load_raw(args)
-    flat = flatten_annotations(raw)
+    flat = flatten_annotations(raw, preserve_ties=(args.tie_training == "half"))
     docs_a, docs_b = response_texts(raw)
     prompt_ids = flat["prompt_id"].astype(str).unique().tolist()
 
     all_rows: List[Dict[str, Any]] = []
     fit_rows: List[Dict[str, Any]] = []
+    prediction_rows: List[Dict[str, Any]] = []
     skipped: Dict[str, int] = {"empty_obs": 0, "fit_failed": 0}
 
     for split_index in split_indices:
@@ -501,20 +533,33 @@ def run_training(args: argparse.Namespace) -> None:
         )
         for group in args.groups:
             for aspect in args.aspects:
-                obs = sorted_edge_observations(flat, aspect=aspect, group=group)
-                if obs.empty:
+                reward_obs = sorted_edge_observations(
+                    flat,
+                    aspect=aspect,
+                    group=group,
+                    include_same_model=args.include_same_model_train,
+                    include_ties=(args.tie_training == "half"),
+                    tie_weight=args.tie_weight,
+                )
+                graph_obs = sorted_edge_observations(flat, aspect=aspect, group=group)
+                if reward_obs.empty or graph_obs.empty:
                     skipped["empty_obs"] += 1
                     continue
-                train_obs = obs[obs["prompt_id"].isin(train_prompts)].copy()
-                test_obs = obs[obs["prompt_id"].isin(test_prompts)].copy()
+                reward_train_obs = reward_obs[reward_obs["prompt_id"].isin(train_prompts)].copy()
+                train_obs = graph_obs[graph_obs["prompt_id"].isin(train_prompts)].copy()
+                test_obs = graph_obs[graph_obs["prompt_id"].isin(test_prompts)].copy()
                 model, tokenizer, fit_meta = train_lora_reward_model(
-                    train_obs=train_obs,
+                    train_obs=reward_train_obs,
                     docs_a=docs_a,
                     docs_b=docs_b,
                     args=args,
                     split_index=split_index,
                     group=group,
                     aspect=aspect,
+                )
+                fit_meta["n_input_train_ties"] = int((reward_train_obs["target"] == 0.5).sum())
+                fit_meta["n_input_train_same_model"] = int(
+                    (reward_train_obs["model_a"] == reward_train_obs["model_b"]).sum()
                 )
                 artifact_path = ""
                 if model is not None and tokenizer is not None and args.save_model:
@@ -534,6 +579,11 @@ def run_training(args: argparse.Namespace) -> None:
                 if not test_obs.empty:
                     test_obs = test_obs.copy()
                     test_obs["neural_p_a"] = predict_p_a(model, tokenizer, test_obs, docs_a, docs_b, args)
+                    prediction_frame = test_obs.copy()
+                    prediction_frame.insert(0, "aspect", aspect)
+                    prediction_frame.insert(0, "group", group)
+                    prediction_frame.insert(0, "split_index", split_index)
+                    prediction_rows.extend(prediction_frame.to_dict(orient="records"))
                 all_rows.extend(
                     analyze_triplets(
                         split_index=split_index,
@@ -552,10 +602,13 @@ def run_training(args: argparse.Namespace) -> None:
 
     results = pd.DataFrame(all_rows)
     fits = pd.DataFrame(fit_rows)
+    predictions = pd.DataFrame(prediction_rows)
     summary = summarize_results(results) if not results.empty else pd.DataFrame()
     result_path, fit_path, summary_path, metadata_path = output_paths(args.outdir, output_split_index)
     results.to_csv(result_path, index=False)
     fits.to_csv(fit_path, index=False)
+    predictions_path = prediction_output_path(args.outdir, output_split_index)
+    predictions.to_csv(predictions_path, index=False)
     summary.to_csv(summary_path, index=False)
     metadata = {
         "mode": "run",
@@ -589,6 +642,9 @@ def run_training(args: argparse.Namespace) -> None:
         "modules_to_save": args.modules_to_save,
         "zero_init_score": args.zero_init_score,
         "trainable_fp32": args.trainable_fp32,
+        "include_same_model_train": args.include_same_model_train,
+        "tie_training": args.tie_training,
+        "tie_weight": args.tie_weight,
         "min_train_edge_weight": args.min_train_edge_weight,
         "min_test_weight": args.min_test_weight,
         "min_test_edges": args.min_test_edges,
@@ -596,11 +652,13 @@ def run_training(args: argparse.Namespace) -> None:
         "skipped": skipped,
         "result_path": str(result_path),
         "fit_path": str(fit_path),
+        "predictions_path": str(predictions_path),
         "summary_path": str(summary_path),
     }
     metadata_path.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
     print(f"Wrote {result_path}", flush=True)
     print(f"Wrote {fit_path}", flush=True)
+    print(f"Wrote {predictions_path}", flush=True)
     print(f"Wrote {summary_path}", flush=True)
     print(f"Wrote {metadata_path}", flush=True)
 

@@ -33,7 +33,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import SGDClassifier
 from sklearn.exceptions import ConvergenceWarning
 
-from run_multipref_cycles_v4 import ASPECTS, pref_to_sign_weight, safe_str
+from run_multipref_cycles_v4 import ASPECTS, normalize_pref, pref_to_sign_weight, safe_str
 from run_multipref_downstream_alignment import (
     aggregate_edges,
     hodge_residual,
@@ -111,7 +111,7 @@ def load_raw(arrow_path: Path, max_raw_rows: Optional[int]) -> pd.DataFrame:
     return raw
 
 
-def flatten_annotations(raw: pd.DataFrame) -> pd.DataFrame:
+def flatten_annotations(raw: pd.DataFrame, preserve_ties: bool = False) -> pd.DataFrame:
     records: List[Dict[str, Any]] = []
     for row in raw.itertuples(index=False):
         r = row._asdict()
@@ -122,18 +122,35 @@ def flatten_annotations(raw: pd.DataFrame) -> pd.DataFrame:
                 "prompt_id": safe_str(r.get("prompt_id")),
                 "prompt_text": safe_str(r.get("text")),
                 "annotation_group": group,
+                "evaluator": safe_str(
+                    ann.get("evaluator")
+                    or ann.get("annotator_id")
+                    or ann.get("worker_id")
+                    or ann.get("rater_id")
+                    or ann.get("user_id")
+                ),
                 "model_a": safe_str(r.get("model_a")),
                 "model_b": safe_str(r.get("model_b")),
             }
             for aspect in ASPECTS:
-                sign, weight = pref_to_sign_weight(ann.get(f"{aspect}_pref"))
+                raw_preference = ann.get(f"{aspect}_pref")
+                sign, weight = pref_to_sign_weight(raw_preference)
                 rec[f"{aspect}_sign"] = sign
                 rec[f"{aspect}_weight"] = weight
+                rec[f"{aspect}_is_tie"] = normalize_pref(raw_preference) in {
+                    "tie",
+                    "equal",
+                    "both",
+                    "neither",
+                    "no-preference",
+                }
             records.append(rec)
 
     flat = pd.DataFrame(records)
     if flat.empty:
         return flat
+    if preserve_ties:
+        return flat.reset_index(drop=True)
     sign_cols = [f"{aspect}_sign" for aspect in ASPECTS]
     return flat[(flat[sign_cols].abs().sum(axis=1) > 0)].reset_index(drop=True)
 
@@ -169,36 +186,92 @@ def build_pair_features(
     return vectorizer, (x_a - x_b).tocsr()
 
 
-def sorted_edge_observations(flat: pd.DataFrame, aspect: str, group: str) -> pd.DataFrame:
+def sorted_edge_observations(
+    flat: pd.DataFrame,
+    aspect: str,
+    group: str,
+    include_same_model: bool = False,
+    include_ties: bool = False,
+    tie_weight: float = 1.0,
+) -> pd.DataFrame:
     sign_col = f"{aspect}_sign"
     weight_col = f"{aspect}_weight"
     if group == "all":
         use = flat
     else:
         use = flat[flat["annotation_group"] == group]
-    use = use[(use[sign_col] != 0) & (use[weight_col] > 0)].copy()
+    tie_col = f"{aspect}_is_tie"
+    if include_ties:
+        if tie_weight <= 0:
+            raise ValueError("tie_weight must be positive when include_ties=True.")
+        is_tie = use[tie_col].astype(bool) if tie_col in use else pd.Series(False, index=use.index)
+        use = use[((use[sign_col] != 0) & (use[weight_col] > 0)) | is_tie].copy()
+        if tie_col in use:
+            tie_rows = use[tie_col].astype(bool)
+            use.loc[tie_rows, weight_col] = float(tie_weight)
+    else:
+        use = use[(use[sign_col] != 0) & (use[weight_col] > 0)].copy()
+    for optional in ["comparison_id", "annotation_group", "evaluator"]:
+        if optional not in use:
+            use[optional] = ""
 
     rows = []
-    for raw_idx, prompt_id, model_a, model_b, sign, weight in use[
-        ["raw_idx", "prompt_id", "model_a", "model_b", sign_col, weight_col]
+    for raw_idx, comparison_id, prompt_id, ann_group, evaluator, model_a, model_b, sign, weight in use[
+        [
+            "raw_idx",
+            "comparison_id",
+            "prompt_id",
+            "annotation_group",
+            "evaluator",
+            "model_a",
+            "model_b",
+            sign_col,
+            weight_col,
+        ]
     ].itertuples(index=False, name=None):
         a = str(model_a)
         b = str(model_b)
-        if not a or not b or a == b:
+        if not a or not b or (a == b and not include_same_model):
+            continue
+        if a == b:
+            rows.append(
+                {
+                    "raw_idx": int(raw_idx),
+                    "comparison_id": str(comparison_id),
+                    "prompt_id": str(prompt_id),
+                    "annotation_group": str(ann_group),
+                    "evaluator": str(evaluator),
+                    "model_a": a,
+                    "model_b": b,
+                    "i": a,
+                    "j": b,
+                    "sign": int(sign),
+                    "row_sign": int(sign),
+                    "target": 0.5 if int(sign) == 0 else float(int(sign) > 0),
+                    "weight": float(weight),
+                }
+            )
             continue
         i, j = sorted((a, b))
-        winner = a if int(sign) > 0 else b
-        sorted_sign = 1 if winner == i else -1
+        if int(sign) == 0:
+            sorted_sign = 0
+        else:
+            winner = a if int(sign) > 0 else b
+            sorted_sign = 1 if winner == i else -1
         rows.append(
             {
                 "raw_idx": int(raw_idx),
+                "comparison_id": str(comparison_id),
                 "prompt_id": str(prompt_id),
+                "annotation_group": str(ann_group),
+                "evaluator": str(evaluator),
                 "model_a": a,
                 "model_b": b,
                 "i": i,
                 "j": j,
                 "sign": sorted_sign,
                 "row_sign": int(sign),
+                "target": 0.5 if int(sign) == 0 else float(int(sign) > 0),
                 "weight": float(weight),
             }
         )

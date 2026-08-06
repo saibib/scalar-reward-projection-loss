@@ -180,6 +180,28 @@ def stable_prompt_split(
     return train, test
 
 
+def stable_prompt_kfold_split(
+    prompt_ids: Sequence[str],
+    seed: int,
+    fold_index: int,
+    n_folds: int,
+) -> Tuple[set[str], set[str]]:
+    """Return one deterministic, non-overlapping prompt-level test fold."""
+    if n_folds < 2:
+        raise ValueError("--n-splits must be at least 2 when --split-mode=kfold.")
+    if fold_index < 0 or fold_index >= n_folds:
+        raise ValueError(f"fold_index must be in 0..{n_folds - 1}.")
+    prompts = np.array(sorted({str(x) for x in prompt_ids}), dtype=object)
+    if n_folds > len(prompts):
+        raise ValueError("--n-splits cannot exceed the number of unique prompts.")
+    rng = np.random.default_rng(seed)
+    permuted = prompts[rng.permutation(len(prompts))]
+    folds = np.array_split(permuted, n_folds)
+    test = set(folds[fold_index].tolist())
+    train = set(prompts.tolist()).difference(test)
+    return train, test
+
+
 def sorted_edge_observations(
     flat: pd.DataFrame,
     aspect: str,
